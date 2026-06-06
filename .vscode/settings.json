@@ -1,0 +1,10 @@
+{
+    "eslint.useFlatConfig": true,
+    "editor.formatOnSave": true,
+    "nuxtr.vueFiles.style.addStyleTag": false,
+    "nuxtr.vueFiles.firstTag": "script",
+    "nuxtr.piniaFiles.defaultTemplate": "setup",
+    "nuxtr.defaultPackageManager": "pnpm",
+    "nuxtr.openItemsAfterCreation": true,
+    "editor.gotoLocation.multipleDefinitions": "goto",
+}
