@@ -24,12 +24,26 @@ const getStorageConfig = (): StorageConfig => {
   const downloadExpiresMinutes = toPositiveInt(config.storagePresignedDownloadExpirationMinutes, 10);
   const maxFileSizeMb = toPositiveInt(config.storageMaxFileSizeMb, 10);
 
+  const endpoint = config.storageEndpoint;
+  const accessKey = config.storageAccessKey;
+  const secretKey = config.storageSecretKey;
+  const region = config.storageRegion;
+  const bucket = config.storageBucket;
+
+  if (!endpoint || !accessKey || !secretKey || !region || !bucket) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Server Error',
+      message: 'Storage runtime config is not fully configured',
+    });
+  }
+
   return {
-    endpoint: String(config.storageEndpoint || process.env.STORAGE_ENDPOINT || 'http://localhost:9000'),
-    accessKey: String(config.storageAccessKey || process.env.STORAGE_ACCESS_KEY || process.env.MINIO_ROOT_USER || 'minioadmin'),
-    secretKey: String(config.storageSecretKey || process.env.STORAGE_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD || 'minioadmin'),
-    region: String(config.storageRegion || process.env.STORAGE_REGION || 'us-east-1'),
-    bucket: String(config.storageBucket || process.env.STORAGE_BUCKET || 'boilerplate-uploads'),
+    endpoint: String(endpoint),
+    accessKey: String(accessKey),
+    secretKey: String(secretKey),
+    region: String(region),
+    bucket: String(bucket),
     uploadExpiresSeconds: uploadExpiresMinutes * 60,
     downloadExpiresSeconds: downloadExpiresMinutes * 60,
     maxFileSizeBytes: maxFileSizeMb * 1024 * 1024,

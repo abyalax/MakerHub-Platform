@@ -13,13 +13,152 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id       Int    @id @default(autoincrement())
-  name     String @db.VarChar(255)
-  password String @db.VarChar(255)
-  email    String @unique @db.VarChar(255)
+model Attachment {
+  id                 Int      @id @default(autoincrement())
+  owner_type         String   @db.VarChar(100)
+  owner_id           Int
+  object_key         String   @unique(map: "attachments_object_key_unique") @db.VarChar(500)
+  bucket             String   @db.VarChar(100)
+  original_file_name String   @db.VarChar(255)
+  content_type       String   @db.VarChar(255)
+  size               Int
+  file_category      String   @db.VarChar(50)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
-  user_roles UserRoles[]
+  @@index([owner_type, owner_id])
+  @@map("attachments")
+}
+
+enum ContentAccessType {
+  FREE
+  PREMIUM
+}
+
+enum ContentStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ClassType {
+  FREE
+  PAID
+}
+
+enum AssetKind {
+  COVER_IMAGE
+  IMAGE
+  VIDEO
+  PDF
+  EBOOK
+  RESOURCE
+}
+
+enum AssetVisibility {
+  PRIVATE
+  PUBLIC
+  PROTECTED
+}
+
+enum PaymentProvider {
+  XENDIT
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum EntitlementType {
+  PURCHASE
+  SUBSCRIPTION
+  ADMIN_GRANT
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELED
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TrafficEventType {
+  PAGE_VIEW
+  PROJECT_VIEW
+  CLASS_VIEW
+  MENTOR_VIEW
+  SEARCH
+}
+
+enum RevenueRuleScope {
+  PLATFORM
+  CLASS
+  MENTOR
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user_roles       UserRoles[]
+  mentorProfile    MentorProfile?
+  authoredProjects Project[]         @relation("ProjectAuthor")
+  authoredClasses  LearningClass[]   @relation("ClassAuthor")
+  mediaAssets      MediaAsset[]      @relation("MediaAssetOwner")
+  orders           Order[]
+  payments         Payment[]
+  subscriptions    Subscription[]
+  entitlements     Entitlement[]
+  enrollments      Enrollment[]
+  projectProgress  ProjectProgress[]
+  lessonProgress   LessonProgress[]
+  bookmarks        Bookmark[]
+  visitors         Visitor[]
+  trafficEvents    TrafficEvent[]
 
   @@index([name])
   @@map("users")
@@ -66,19 +205,573 @@ model UserRoles {
   @@map("user_roles")
 }
 
-model Attachment {
-  id                 Int      @id @default(autoincrement())
-  owner_type         String   @db.VarChar(100)
-  owner_id           Int
-  object_key         String   @unique(map: "attachments_object_key_unique") @db.VarChar(500)
-  bucket             String   @db.VarChar(100)
-  original_file_name String   @db.VarChar(255)
-  content_type       String   @db.VarChar(255)
-  size               Int
-  file_category      String   @db.VarChar(50)
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+model MentorProfile {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique @map("user_id")
+  headline   String?  @db.VarChar(255)
+  bio        String?  @db.Text
+  expertise  String?  @db.VarChar(255)
+  websiteUrl String?  @map("website_url") @db.VarChar(255)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  @@index([owner_type, owner_id])
-  @@map("attachments")
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects          Project[]
+  classes           LearningClass[]
+  revenueShareRules RevenueShareRule[]
+  payouts           MentorPayout[]
+  trafficEvents     TrafficEvent[]
+
+  @@map("mentor_profiles")
 }
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(120)
+  slug        String   @unique @db.VarChar(140)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  projects Project[]
+  classes  LearningClass[]
+
+  @@index([name])
+  @@map("categories")
+}
+
+model Project {
+  id           Int               @id @default(autoincrement())
+  mentorId     Int               @map("mentor_id")
+  authorId     Int               @map("author_id")
+  categoryId   Int?              @map("category_id")
+  coverAssetId Int?              @map("cover_asset_id")
+  title        String            @db.VarChar(255)
+  slug         String            @unique @db.VarChar(280)
+  summary      String?           @db.VarChar(500)
+  description  String            @db.Text
+  objectives   Json?
+  accessType   ContentAccessType @default(FREE) @map("access_type")
+  status       ContentStatus     @default(DRAFT)
+  price        Decimal           @default(0) @db.Decimal(12, 2)
+  currency     String            @default("IDR") @db.VarChar(3)
+  publishedAt  DateTime?         @map("published_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  mentor             MentorProfile         @relation(fields: [mentorId], references: [id])
+  author             User                  @relation("ProjectAuthor", fields: [authorId], references: [id])
+  category           Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  coverAsset         MediaAsset?           @relation("ProjectCoverAsset", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  assets             MediaAsset[]          @relation("ProjectAssets")
+  classProjects      ClassProject[]
+  sections           ProjectSection[]
+  assignments        ProjectAssignment[]
+  completionCriteria CompletionCriterion[]
+  entitlements       Entitlement[]
+  progress           ProjectProgress[]
+  bookmarks          Bookmark[]
+  trafficEvents      TrafficEvent[]
+
+  @@index([mentorId])
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([accessType])
+  @@map("projects")
+}
+
+model LearningClass {
+  id           Int           @id @default(autoincrement())
+  mentorId     Int           @map("mentor_id")
+  authorId     Int           @map("author_id")
+  categoryId   Int?          @map("category_id")
+  coverAssetId Int?          @map("cover_asset_id")
+  title        String        @db.VarChar(255)
+  slug         String        @unique @db.VarChar(280)
+  description  String        @db.Text
+  classType    ClassType     @default(FREE) @map("class_type")
+  status       ContentStatus @default(DRAFT)
+  price        Decimal       @default(0) @db.Decimal(12, 2)
+  currency     String        @default("IDR") @db.VarChar(3)
+  publishedAt  DateTime?     @map("published_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  mentor            MentorProfile      @relation(fields: [mentorId], references: [id])
+  author            User               @relation("ClassAuthor", fields: [authorId], references: [id])
+  category          Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  coverAsset        MediaAsset?        @relation("ClassCoverAsset", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  assets            MediaAsset[]       @relation("ClassAssets")
+  projects          ClassProject[]
+  orders            Order[]
+  entitlements      Entitlement[]
+  enrollments       Enrollment[]
+  revenueShareRules RevenueShareRule[]
+  bookmarks         Bookmark[]
+  trafficEvents     TrafficEvent[]
+
+  @@index([mentorId])
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([classType])
+  @@map("learning_classes")
+}
+
+model ClassProject {
+  classId   Int @map("class_id")
+  projectId Int @map("project_id")
+  sortOrder Int @default(0) @map("sort_order")
+
+  class   LearningClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([classId, projectId])
+  @@map("class_projects")
+}
+
+model ProjectSection {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  title     String   @db.VarChar(255)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lessons ProjectLesson[]
+
+  @@index([projectId])
+  @@map("project_sections")
+}
+
+model ProjectLesson {
+  id           Int      @id @default(autoincrement())
+  sectionId    Int      @map("section_id")
+  videoAssetId Int?     @map("video_asset_id")
+  title        String   @db.VarChar(255)
+  content      String?  @db.Text
+  isPreview    Boolean  @default(false) @map("is_preview")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  section            ProjectSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  videoAsset         MediaAsset?           @relation("LessonVideoAsset", fields: [videoAssetId], references: [id], onDelete: SetNull)
+  assets             MediaAsset[]          @relation("LessonAssets")
+  assignments        ProjectAssignment[]
+  completionCriteria CompletionCriterion[]
+  progress           LessonProgress[]
+
+  @@index([sectionId])
+  @@map("project_lessons")
+}
+
+model ProjectAssignment {
+  id           Int      @id @default(autoincrement())
+  projectId    Int      @map("project_id")
+  lessonId     Int?     @map("lesson_id")
+  title        String   @db.VarChar(255)
+  instructions String   @db.Text
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  project            Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lesson             ProjectLesson?        @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  assets             MediaAsset[]          @relation("AssignmentAssets")
+  completionCriteria CompletionCriterion[]
+
+  @@index([projectId])
+  @@index([lessonId])
+  @@map("project_assignments")
+}
+
+model CompletionCriterion {
+  id           Int      @id @default(autoincrement())
+  projectId    Int?     @map("project_id")
+  lessonId     Int?     @map("lesson_id")
+  assignmentId Int?     @map("assignment_id")
+  title        String   @db.VarChar(255)
+  description  String?  @db.Text
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  project    Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lesson     ProjectLesson?     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  assignment ProjectAssignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([lessonId])
+  @@index([assignmentId])
+  @@map("completion_criteria")
+}
+
+model MediaAsset {
+  id               Int             @id @default(autoincrement())
+  ownerId          Int             @map("owner_id")
+  projectId        Int?            @map("project_id")
+  classId          Int?            @map("class_id")
+  lessonId         Int?            @map("lesson_id")
+  assignmentId     Int?            @map("assignment_id")
+  bucket           String          @db.VarChar(120)
+  objectKey        String          @unique @map("object_key") @db.VarChar(500)
+  originalFileName String          @map("original_file_name") @db.VarChar(255)
+  mimeType         String          @map("mime_type") @db.VarChar(120)
+  sizeBytes        Int             @map("size_bytes")
+  assetKind        AssetKind       @map("asset_kind")
+  visibility       AssetVisibility @default(PRIVATE)
+  checksum         String?         @db.VarChar(128)
+  publicUrl        String?         @map("public_url") @db.VarChar(500)
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  owner              User               @relation("MediaAssetOwner", fields: [ownerId], references: [id])
+  project            Project?           @relation("ProjectAssets", fields: [projectId], references: [id], onDelete: SetNull)
+  class              LearningClass?     @relation("ClassAssets", fields: [classId], references: [id], onDelete: SetNull)
+  lesson             ProjectLesson?     @relation("LessonAssets", fields: [lessonId], references: [id], onDelete: SetNull)
+  assignment         ProjectAssignment? @relation("AssignmentAssets", fields: [assignmentId], references: [id], onDelete: SetNull)
+  projectCoverUsages Project[]          @relation("ProjectCoverAsset")
+  classCoverUsages   LearningClass[]    @relation("ClassCoverAsset")
+  lessonVideoUsages  ProjectLesson[]    @relation("LessonVideoAsset")
+
+  @@index([ownerId])
+  @@index([projectId])
+  @@index([classId])
+  @@index([assetKind])
+  @@map("media_assets")
+}
+
+model SubscriptionPlan {
+  id              Int             @id @default(autoincrement())
+  name            String          @db.VarChar(120)
+  slug            String          @unique @db.VarChar(140)
+  description     String?         @db.Text
+  price           Decimal         @db.Decimal(12, 2)
+  currency        String          @default("IDR") @db.VarChar(3)
+  billingInterval BillingInterval @map("billing_interval")
+  xenditPlanId    String?         @map("xendit_plan_id") @db.VarChar(120)
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  orders        Order[]
+  subscriptions Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Order {
+  id                 Int             @id @default(autoincrement())
+  userId             Int             @map("user_id")
+  classId            Int?            @map("class_id")
+  subscriptionPlanId Int?            @map("subscription_plan_id")
+  orderNumber        String          @unique @map("order_number") @db.VarChar(80)
+  amount             Decimal         @db.Decimal(12, 2)
+  currency           String          @default("IDR") @db.VarChar(3)
+  status             OrderStatus     @default(PENDING)
+  provider           PaymentProvider @default(XENDIT)
+  providerInvoiceId  String?         @map("provider_invoice_id") @db.VarChar(120)
+  checkoutUrl        String?         @map("checkout_url") @db.VarChar(500)
+  expiresAt          DateTime?       @map("expires_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id])
+  class            LearningClass?    @relation(fields: [classId], references: [id], onDelete: SetNull)
+  subscriptionPlan SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id], onDelete: SetNull)
+  payments         Payment[]
+  entitlements     Entitlement[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model Payment {
+  id                Int             @id @default(autoincrement())
+  orderId           Int             @map("order_id")
+  userId            Int             @map("user_id")
+  provider          PaymentProvider @default(XENDIT)
+  providerPaymentId String?         @map("provider_payment_id") @db.VarChar(120)
+  amount            Decimal         @db.Decimal(12, 2)
+  currency          String          @default("IDR") @db.VarChar(3)
+  status            PaymentStatus   @default(PENDING)
+  paidAt            DateTime?       @map("paid_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Subscription {
+  id                 Int                @id @default(autoincrement())
+  userId             Int                @map("user_id")
+  subscriptionPlanId Int                @map("subscription_plan_id")
+  provider           PaymentProvider    @default(XENDIT)
+  providerExternalId String?            @map("provider_external_id") @db.VarChar(120)
+  status             SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodStart DateTime?          @map("current_period_start")
+  currentPeriodEnd   DateTime?          @map("current_period_end")
+  canceledAt         DateTime?          @map("canceled_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user             User             @relation(fields: [userId], references: [id])
+  subscriptionPlan SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id])
+  entitlements     Entitlement[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model Entitlement {
+  id             Int             @id @default(autoincrement())
+  userId         Int             @map("user_id")
+  classId        Int?            @map("class_id")
+  projectId      Int?            @map("project_id")
+  orderId        Int?            @map("order_id")
+  subscriptionId Int?            @map("subscription_id")
+  type           EntitlementType
+  startsAt       DateTime        @default(now()) @map("starts_at")
+  expiresAt      DateTime?       @map("expires_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  user         User           @relation(fields: [userId], references: [id])
+  class        LearningClass? @relation(fields: [classId], references: [id], onDelete: Cascade)
+  project      Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  order        Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  subscription Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([classId])
+  @@index([projectId])
+  @@map("entitlements")
+}
+
+model Enrollment {
+  id              Int              @id @default(autoincrement())
+  userId          Int              @map("user_id")
+  classId         Int              @map("class_id")
+  status          EnrollmentStatus @default(ACTIVE)
+  progressPercent Decimal          @default(0) @map("progress_percent") @db.Decimal(5, 2)
+  enrolledAt      DateTime         @default(now()) @map("enrolled_at")
+  completedAt     DateTime?        @map("completed_at")
+
+  user            User              @relation(fields: [userId], references: [id])
+  class           LearningClass     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  projectProgress ProjectProgress[]
+
+  @@unique([userId, classId])
+  @@index([status])
+  @@map("enrollments")
+}
+
+model ProjectProgress {
+  id              Int            @id @default(autoincrement())
+  userId          Int            @map("user_id")
+  projectId       Int            @map("project_id")
+  enrollmentId    Int?           @map("enrollment_id")
+  status          ProgressStatus @default(NOT_STARTED)
+  progressPercent Decimal        @default(0) @map("progress_percent") @db.Decimal(5, 2)
+  startedAt       DateTime?      @map("started_at")
+  completedAt     DateTime?      @map("completed_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id])
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, projectId])
+  @@index([status])
+  @@map("project_progress")
+}
+
+model LessonProgress {
+  id          Int            @id @default(autoincrement())
+  userId      Int            @map("user_id")
+  lessonId    Int            @map("lesson_id")
+  status      ProgressStatus @default(NOT_STARTED)
+  completedAt DateTime?      @map("completed_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  user   User          @relation(fields: [userId], references: [id])
+  lesson ProjectLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([status])
+  @@map("lesson_progress")
+}
+
+model Bookmark {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  projectId  Int?     @map("project_id")
+  classId    Int?     @map("class_id")
+  isFavorite Boolean  @default(false) @map("is_favorite")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user    User           @relation(fields: [userId], references: [id])
+  project Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  class   LearningClass? @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([classId])
+  @@map("bookmarks")
+}
+
+model RevenueShareRule {
+  id              Int              @id @default(autoincrement())
+  scope           RevenueRuleScope @default(PLATFORM)
+  mentorId        Int?             @map("mentor_id")
+  classId         Int?             @map("class_id")
+  mentorPercent   Decimal          @map("mentor_percent") @db.Decimal(5, 2)
+  platformPercent Decimal          @map("platform_percent") @db.Decimal(5, 2)
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  mentor MentorProfile? @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  class  LearningClass? @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([scope])
+  @@map("revenue_share_rules")
+}
+
+model MentorPayout {
+  id          Int          @id @default(autoincrement())
+  mentorId    Int          @map("mentor_id")
+  amount      Decimal      @db.Decimal(12, 2)
+  currency    String       @default("IDR") @db.VarChar(3)
+  status      PayoutStatus @default(PENDING)
+  periodStart DateTime     @map("period_start")
+  periodEnd   DateTime     @map("period_end")
+  paidAt      DateTime?    @map("paid_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  mentor MentorProfile @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@index([mentorId])
+  @@index([status])
+  @@map("mentor_payouts")
+}
+
+model ProviderWebhookEvent {
+  id          Int             @id @default(autoincrement())
+  provider    PaymentProvider @default(XENDIT)
+  eventId     String          @unique @map("event_id") @db.VarChar(160)
+  eventType   String          @map("event_type") @db.VarChar(160)
+  payload     Json
+  receivedAt  DateTime        @default(now()) @map("received_at")
+  processedAt DateTime?       @map("processed_at")
+
+  @@index([provider])
+  @@map("provider_webhook_events")
+}
+
+model Visitor {
+  id          Int      @id @default(autoincrement())
+  anonymousId String   @unique @map("anonymous_id") @db.VarChar(120)
+  userId      Int?     @map("user_id")
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  ipHash      String?  @map("ip_hash") @db.VarChar(128)
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  trafficEvents TrafficEvent[]
+
+  @@index([userId])
+  @@map("visitors")
+}
+
+model TrafficEvent {
+  id         Int              @id @default(autoincrement())
+  visitorId  Int?             @map("visitor_id")
+  userId     Int?             @map("user_id")
+  projectId  Int?             @map("project_id")
+  classId    Int?             @map("class_id")
+  mentorId   Int?             @map("mentor_id")
+  eventType  TrafficEventType @map("event_type")
+  path       String           @db.VarChar(500)
+  referrer   String?          @db.VarChar(500)
+  searchTerm String?          @map("search_term") @db.VarChar(255)
+  occurredAt DateTime         @default(now()) @map("occurred_at")
+
+  visitor Visitor?       @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  user    User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  project Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  class   LearningClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
+  mentor  MentorProfile? @relation(fields: [mentorId], references: [id], onDelete: SetNull)
+
+  @@index([eventType])
+  @@index([occurredAt])
+  @@index([projectId])
+  @@index([classId])
+  @@index([mentorId])
+  @@map("traffic_events")
+}
+
+// ============================================================================
+// FUTURE ENTITIES - Live Learning (Epic 5 - Sprint 3)
+// ============================================================================
+// These entities are planned for future implementation of Live Learning feature
+// Uncomment and implement when ready to add live session functionality
+
+// model LiveSession {
+//   id              Int              @id @default(autoincrement())
+//   mentorId        Int              @map("mentor_id")
+//   title           String           @db.VarChar(255)
+//   description     String?          @db.Text
+//   scheduledAt     DateTime         @map("scheduled_at")
+//   durationMinutes Int              @map("duration_minutes")
+//   maxAttendees    Int?             @map("max_attendees")
+//   status          LiveSessionStatus @default(SCHEDULED)
+//   streamUrl       String?          @map("stream_url") @db.VarChar(500)
+//   recordingUrl    String?          @map("recording_url") @db.VarChar(500)
+//   createdAt       DateTime         @default(now()) @map("created_at")
+//   updatedAt       DateTime         @updatedAt @map("updated_at")
+//
+//   mentor          MentorProfile    @relation(fields: [mentorId], references: [id])
+//   attendees       LiveSessionAttendee[]
+//
+//   @@index([mentorId])
+//   @@index([scheduledAt])
+//   @@index([status])
+//   @@map("live_sessions")
+// }
+//
+// model LiveSessionAttendee {
+//   id            Int         @id @default(autoincrement())
+//   liveSessionId Int         @map("live_session_id")
+//   userId        Int         @map("user_id")
+//   joinedAt      DateTime    @default(now()) @map("joined_at")
+//   leftAt        DateTime?   @map("left_at")
+//
+//   liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+//   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+//
+//   @@unique([liveSessionId, userId])
+//   @@index([liveSessionId])
+//   @@index([userId])
+//   @@map("live_session_attendees")
+// }
+//
+// enum LiveSessionStatus {
+//   SCHEDULED
+//   LIVE
+//   ENDED
+//   CANCELLED
+// }

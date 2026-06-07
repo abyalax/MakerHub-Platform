@@ -1,100 +1,98 @@
 import { defineStore } from 'pinia';
 import type { User } from '~/layers/users/app/types';
 import type { AuthState } from './types';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import type { TResponse } from '~/layers/shared/app/types/response';
 import { ENDPOINT } from '~/layers/shared/app/common/const/endpoint';
+
+const AUTH_STORAGE_KEY = 'auth_state';
 
 const createInitialState = (): AuthState => ({
   user: undefined,
   isAuthenticated: false,
 });
 
-export const useAuthStore = defineStore('auth', () => {
-  const state = ref<AuthState>(createInitialState());
+export const useAuthStore = defineStore(
+  'auth',
+  () => {
+    const state = ref<AuthState>(createInitialState());
 
-  const { mutateAsync: refreshToken } = useUseRefreshToken();
-  const user = computed(() => state.value.user);
-  const isAuthenticated = computed(() => state.value.isAuthenticated);
+    const { mutateAsync: refreshToken } = useUseRefreshToken();
 
-  const setUser = (user?: User) => {
-    if (!user) {
-      clearAuth();
-      return;
-    }
+    const user = computed(() => state.value.user);
+    const isAuthenticated = computed(() => state.value.isAuthenticated);
 
-    state.value.user = user;
-    state.value.isAuthenticated = true;
-    state.value.error = undefined;
-  };
+    const setUser = (user?: User) => {
+      if (!user) {
+        clearAuth();
+        return;
+      }
 
-  const setAuthenticated = (authenticated: boolean) => {
-    state.value.isAuthenticated = authenticated;
-  };
+      state.value.user = user;
+      state.value.isAuthenticated = true;
+      state.value.error = undefined;
+    };
 
-  const clearAuth = () => {
-    Object.assign(state.value, createInitialState());
-  };
+    const setAuthenticated = (authenticated: boolean) => {
+      state.value.isAuthenticated = authenticated;
+    };
 
-  const clearError = () => {
-    state.value.error = undefined;
-  };
+    const clearAuth = () => {
+      Object.assign(state.value, createInitialState());
+    };
 
-  function hydrateFromStorage() {
-    if (!import.meta.client) return;
-    const userJson = localStorage.getItem('auth_user');
+    const clearError = () => {
+      state.value.error = undefined;
+    };
 
-    if (userJson) {
+    const hydrateFromStorage = () => {
+      if (!import.meta.client) return;
+
+      const rawState = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (!rawState) return;
+
       try {
-        const user = JSON.parse(userJson);
-        setUser(user);
+        const parsedState = JSON.parse(rawState) as Partial<AuthState>;
+
+        state.value.user = parsedState.user;
+        state.value.isAuthenticated = Boolean(parsedState.user);
+        state.value.error = undefined;
       } catch {
         clearAuth();
-        localStorage.removeItem('auth_user');
       }
-    }
+    };
+
+    const verifySession = async () => {
+      try {
+        const config = useRuntimeConfig();
+
+        const response = await $fetch<TResponse<User>>(ENDPOINT.VERIFY, {
+          baseURL: config.public.apiBaseUrl,
+          credentials: 'include',
+        });
+
+        setUser(response.data);
+        return response.data;
+      } catch (error) {
+        clearAuth();
+        throw error;
+      }
+    };
+
+    return {
+      user,
+      isAuthenticated,
+
+      setUser,
+      setAuthenticated,
+      clearAuth,
+      clearError,
+      hydrateFromStorage,
+      verifySession,
+      refreshToken,
+    };
+  },
+  {
+    persist: true,
   }
-
-  watch(
-    () => state.value.user,
-    (newUser) => {
-      if (!import.meta.client) return;
-      if (newUser) {
-        localStorage.setItem('auth_user', JSON.stringify(newUser));
-      } else {
-        localStorage.removeItem('auth_user');
-      }
-    }
-  );
-
-  const verifySession = async () => {
-    try {
-      const config = useRuntimeConfig();
-      const response = await $fetch<TResponse<User>>(ENDPOINT.VERIFY, {
-        baseURL: config.public.apiBaseUrl,
-        credentials: 'include',
-      });
-
-      setUser(response.data);
-      return response.data;
-    } catch (error) {
-      clearAuth();
-      throw error;
-    }
-  };
-
-  return {
-    // State
-    user,
-    isAuthenticated,
-
-    // Actions
-    setUser,
-    setAuthenticated,
-    clearAuth,
-    clearError,
-    hydrateFromStorage,
-    verifySession,
-    refreshToken,
-  };
-});
+);

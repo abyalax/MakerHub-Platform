@@ -11,7 +11,7 @@ definePageMeta({
     <template #children>
       <div class="rounded-lg border bg-card p-6">
         <h2 class="text-xl font-semibold">Dashboard</h2>
-        <p class="mt-2 text-sm text-muted-foreground">You are signed in. Use the sidebar to manage users and roles.</p>
+        <p class="mt-2 text-sm text-muted-foreground">Use the sidebar to manage users, roles, project authoring, and moderation.</p>
       </div>
     </template>
   </Page>

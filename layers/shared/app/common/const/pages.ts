@@ -9,18 +9,28 @@ export const PAGES = {
 export const PUBLIC_PAGES = {
   EVENTS: '/public-events',
   EVENTS_DETAIL: '/public-events/',
+  PROJECTS: '/projects',
+  PROJECTS_DETAIL: '/projects/',
+  MENTORS: '/mentors',
+  MENTORS_DETAIL: '/mentors/',
+  PROFILES: '/profiles',
+  PROFILES_DETAIL: '/profiles/',
+  AUTH_LOGIN: '/login',
+  AUTH_REGISTER: '/register',
 } as const;
 
-export const LIST_PUBLIC_PAGES = [...Object.values(PUBLIC_PAGES), PAGES.LOGIN, PAGES.REGISTER] as const;
+export const LIST_PUBLIC_PAGES = [...Object.values(PUBLIC_PAGES), PAGES.LOGIN, PAGES.REGISTER, '/login', '/register'] as const;
 
 export const AUTH_ENDPOINTS = new Set([
   PAGES.LOGIN,
   PAGES.REGISTER,
+  '/login',
+  '/register',
   '/auth/login',
   '/auth/register',
-  '/auth/refresh',
-  '/auth/logout',
-  '/auth/verify',
+  '/refresh',
+  '/logout',
+  '/verify',
   'refresh',
   ...Object.values(PUBLIC_PAGES),
 ]);

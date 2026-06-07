@@ -1,4 +1,6 @@
 import { useMutation } from '@tanstack/vue-query';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from './useAuthStore';
 import { ENDPOINT } from '~/layers/shared/app/common/const/endpoint';
 import { useHttp } from '~/layers/shared/app/composable/useHttp';
 import type { TResponse } from '~/layers/shared/app/types/response';

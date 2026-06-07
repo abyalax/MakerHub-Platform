@@ -1,10 +1,8 @@
-<script setup>
-import { Toaster } from 'vue-sonner';
+<script setup lang="ts">
+import AppProvider from '../components/providers/AppProvider.vue';
 </script>
-
 <template>
-  <div>
-    <NuxtPage />
-    <Toaster rich-colors position="top-center" />
-  </div>
+  <AppProvider>
+    <slot />
+  </AppProvider>
 </template>

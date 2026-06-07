@@ -11,11 +11,10 @@ Dokumentasi komprehensif tentang Nuxt 4 Layers untuk implementasi di project lai
 3. [File Structure](#file-structure)
 4. [Configuration](#configuration)
 5. [Layer Priority System](#layer-priority-system)
-6. [Auto-Import Rules](#auto-import-rules)
-7. [Feature Layer Template](#feature-layer-template)
-8. [Data Flow Pattern](#data-flow-pattern)
-9. [Implementation Checklist](#implementation-checklist)
-10. [Common Patterns](#common-patterns)
+6. [Feature Layer Template](#feature-layer-template)
+7. [Data Flow Pattern](#data-flow-pattern)
+8. [Implementation Checklist](#implementation-checklist)
+9. [Common Patterns](#common-patterns)
 
 ---
 
@@ -422,7 +421,7 @@ Pinia Store (manages state)
     ↓
 API Service (useExampleApi)
     ↓
-$fetch or useFetch
+  useHTTP
     ↓
 Server API Route
     ↓
@@ -445,27 +444,75 @@ export interface CreateExampleData {
 }
 ```
 
-**2. API Service** (`useExampleApi.ts`)
+**2. API Composables**
+
+Use separate composables for each CRUD operation with TanStack Query:
 
 ```typescript
-import type { Example, CreateExampleData } from './types';
+// useGetExamples.ts
+import { useQuery } from '@tanstack/vue-query';
+import { ENDPOINT } from '~/layers/shared/app/common/const/endpoint';
+import { QUERY_KEY } from '~/layers/shared/app/common/const/querykey';
+import { useHttp } from '~/layers/shared/app/composable/useHttp';
+import type { MetaRequest, Paginated } from '~/layers/shared/app/types/meta';
+import type { TResponse } from '~/layers/shared/app/types/response';
+import type { Example } from '../types';
 
-export function useExampleApi() {
-  const config = useRuntimeConfig();
-  const baseUrl = config.public.apiBaseUrl;
+export function useGetExamples(params: ComputedRef<MetaRequest>) {
+  const http = useHttp();
 
-  async function getAll(): Promise<Example[]> {
-    return $fetch(`${baseUrl}/examples`);
-  }
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY.EXAMPLES_LIST, unref(params)]),
+    queryFn: async () => {
+      const response = await http<TResponse<Paginated<Example>>>(ENDPOINT.EXAMPLES, {
+        method: 'GET',
+        query: unref(params),
+      });
+      return response.data;
+    },
+    staleTime: 0,
+    enabled: true,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+  });
+}
 
-  async function create(data: CreateExampleData): Promise<Example> {
-    return $fetch(`${baseUrl}/examples`, {
-      method: 'POST',
-      body: data,
-    });
-  }
+// useCreateExample.ts
+import { useMutation, useQueryClient } from '@tanstack/vue-query';
+import { ENDPOINT } from '~/layers/shared/app/common/const/endpoint';
+import { QUERY_KEY } from '~/layers/shared/app/common/const/querykey';
+import { useHttp } from '~/layers/shared/app/composable/useHttp';
+import type { TResponse } from '~/layers/shared/app/types/response';
+import type { CreateExamplePayload, Example } from '../types';
 
-  return { getAll, create };
+export function useCreateExample() {
+  const http = useHttp();
+  const queryClient = useQueryClient();
+  const { $toast } = useNuxtApp();
+
+  return useMutation({
+    mutationFn: async (params: CreateExamplePayload) => {
+      const response = await http<TResponse<Example>>(ENDPOINT.EXAMPLES, {
+        method: 'POST',
+        body: params,
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY.EXAMPLES_LIST] });
+      $toast.info('Create Example Successfully');
+    },
+    onError: (error: { data: TResponse; status: number }) => {
+      const errMessage = error.data.message;
+      const message = Array.isArray(errMessage) ? errMessage[0] : errMessage;
+      if (error.status >= 400 && error.status < 500) {
+        $toast.warning(message ?? 'Create Example Failed');
+      } else {
+        $toast.error(message ?? 'Internal Server Error');
+      }
+    },
+  });
 }
 ```
 
@@ -728,6 +775,5 @@ if (config.public.featureFlags.newUI) {
 
 ---
 
-**Last Updated**: February 2026  
-**Framework**: Nuxt 4
-\_Last Update at 2026-05-15 19:55:20\_
+**Last Updated**: Juny 2026  
+_Last Update at 2026-06-07 07:53:42_

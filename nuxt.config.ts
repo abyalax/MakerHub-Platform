@@ -6,7 +6,19 @@ export default defineNuxtConfig({
   },
   ssr: false,
 
-  extends: ['./layers/shared', './layers/auth', './layers/users'],
+  extends: [
+    './layers/shared',
+    './layers/auth',
+    './layers/users',
+    './layers/projects',
+    './layers/payments',
+    './layers/enrollments',
+    './layers/progress',
+    './layers/revenue',
+    './layers/subscriptions',
+    './layers/admin-analytics',
+    './layers/bookmarks',
+  ],
 
   css: ['~/layers/shared/app/assets/css/tailwind.css', 'vue-sonner/style.css'],
 
@@ -28,6 +40,7 @@ export default defineNuxtConfig({
     '@nuxt/test-utils/module',
     '@peterbud/nuxt-query',
     'vue-sonner/nuxt',
+    'pinia-plugin-persistedstate/nuxt',
   ],
 
   shadcn: {
@@ -57,10 +70,18 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    authAccessTokenSecret: process.env.NUXT_AUTH_ACCESS_TOKEN_SECRET || 'dev-access-token-secret-change-me',
-    authRefreshTokenSecret: process.env.NUXT_AUTH_REFRESH_TOKEN_SECRET || 'dev-refresh-token-secret-change-me',
-    authAccessTokenTtl: process.env.NUXT_AUTH_ACCESS_TOKEN_TTL || '15m',
-    authRefreshTokenTtl: process.env.NUXT_AUTH_REFRESH_TOKEN_TTL || '7d',
+    authAccessTokenSecret: process.env.NUXT_AUTH_ACCESS_TOKEN_SECRET,
+    authRefreshTokenSecret: process.env.NUXT_AUTH_REFRESH_TOKEN_SECRET,
+    authAccessTokenTtl: process.env.NUXT_AUTH_ACCESS_TOKEN_TTL,
+    authRefreshTokenTtl: process.env.NUXT_AUTH_REFRESH_TOKEN_TTL,
+
+    isProduction: process.env.NODE_ENV === 'production',
+    appUrl: process.env.APP_URL,
+
+    xenditApiKey: process.env.XENDIT_API_KEY,
+    xenditApiUrl: process.env.XENDIT_API_URL || 'https://api.xendit.co',
+    xenditWebhookToken: process.env.XENDIT_WEBHOOK_TOKEN,
+
     storageProvider: process.env.STORAGE_PROVIDER || 'minio',
     storageEndpoint: process.env.STORAGE_ENDPOINT || 'http://localhost:9000',
     storageAccessKey: process.env.STORAGE_ACCESS_KEY || process.env.MINIO_ROOT_USER || 'minioadmin',
@@ -70,6 +91,7 @@ export default defineNuxtConfig({
     storagePresignedUploadExpirationMinutes: process.env.STORAGE_PRESIGNED_UPLOAD_EXPIRATION_MINUTES || '10',
     storagePresignedDownloadExpirationMinutes: process.env.STORAGE_PRESIGNED_DOWNLOAD_EXPIRATION_MINUTES || '10',
     storageMaxFileSizeMb: process.env.STORAGE_MAX_FILE_SIZE_MB || '10',
+
     public: {
       apiBaseUrl: process.env.API_BASE_URL || '/api',
     },

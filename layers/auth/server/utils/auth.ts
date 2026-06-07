@@ -1,7 +1,6 @@
 import { createError, deleteCookie, getCookie, setCookie, type H3Event } from 'h3';
 import { SignJWT, jwtVerify } from 'jose';
-import type { User } from '~/layers/users/types';
-import { userService } from '~/layers/users/server/services/users.service';
+import type { User, Permission, Role } from '~/layers/users/types';
 
 const ACCESS_COOKIE = 'auth_access_token';
 const REFRESH_COOKIE = 'auth_refresh_token';
@@ -11,54 +10,103 @@ type TokenType = 'access' | 'refresh';
 type AuthJwtPayload = {
   email: string;
   type: TokenType;
+  sub?: string;
+  name?: string;
+  roles?: Role[];
+  permissions?: Permission[];
+};
+
+type AuthTokenData = {
+  userId: number;
+  email: string;
+  name: string;
+  roles: Role[];
+  permissions: Permission[];
 };
 
 const textEncoder = new TextEncoder();
+const TIME_PERIOD_RE = /^(?:\d+|\d+[smhd])$/i;
 
-const getAuthConfig = () => {
-  const config = useRuntimeConfig();
+const getAuthConfig = (event: H3Event) => {
+  const config = useRuntimeConfig(event);
+  const accessSecret = config.authAccessTokenSecret;
+  const refreshSecret = config.authRefreshTokenSecret;
+  const accessTtl = config.authAccessTokenTtl;
+  const refreshTtl = config.authRefreshTokenTtl;
+
+  if (!accessSecret || !refreshSecret || !accessTtl || !refreshTtl) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Server Error',
+      message: 'Authentication runtime config is not fully configured',
+    });
+  }
 
   return {
-    accessSecret: String(config.authAccessTokenSecret || process.env.NUXT_AUTH_ACCESS_TOKEN_SECRET || 'dev-access-token-secret-change-me'),
-    refreshSecret: String(config.authRefreshTokenSecret || process.env.NUXT_AUTH_REFRESH_TOKEN_SECRET || 'dev-refresh-token-secret-change-me'),
-    accessTtl: String(config.authAccessTokenTtl || process.env.NUXT_AUTH_ACCESS_TOKEN_TTL || '15m'),
-    refreshTtl: String(config.authRefreshTokenTtl || process.env.NUXT_AUTH_REFRESH_TOKEN_TTL || '7d'),
+    accessSecret: String(accessSecret),
+    refreshSecret: String(refreshSecret),
+    accessTtl: String(accessTtl),
+    refreshTtl: String(refreshTtl),
   };
 };
 
-const getSecret = (type: TokenType) => {
-  const config = getAuthConfig();
+const normalizeTtl = (ttl: string, label: string) => {
+  const value = ttl.trim();
+
+  if (!TIME_PERIOD_RE.test(value)) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Server Error',
+      message: `Invalid ${label} token TTL format. Use a jose time span like "15m", "7d", or a number of seconds.`,
+    });
+  }
+
+  return /^\d+$/.test(value) ? Number(value) : value;
+};
+
+const getSecret = (event: H3Event, type: TokenType) => {
+  const config = getAuthConfig(event);
   return textEncoder.encode(type === 'access' ? config.accessSecret : config.refreshSecret);
 };
 
-const getTtl = (type: TokenType) => {
-  const config = getAuthConfig();
-  return type === 'access' ? config.accessTtl : config.refreshTtl;
+const getTtl = (event: H3Event, type: TokenType) => {
+  const config = getAuthConfig(event);
+  return type === 'access' ? normalizeTtl(config.accessTtl, 'access') : normalizeTtl(config.refreshTtl, 'refresh');
 };
 
 const getCookieName = (type: TokenType) => (type === 'access' ? ACCESS_COOKIE : REFRESH_COOKIE);
 
-const cookieOptions = {
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  secure: process.env.NODE_ENV === 'production',
-  path: '/',
+const getCookieOptions = (event: H3Event) => {
+  const config = useRuntimeConfig(event);
+
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: Boolean(config.isProduction),
+    path: '/',
+  };
 };
 
-export const signAuthToken = async (user: Pick<User, 'id' | 'email'>, type: TokenType) => {
-  return new SignJWT({ email: user.email, type } satisfies AuthJwtPayload)
+export const signAuthToken = async (event: H3Event, user: Pick<User, 'id' | 'email' | 'name' | 'roles' | 'permissions'>, type: TokenType) => {
+  return new SignJWT({
+    email: user.email,
+    type,
+    name: user.name,
+    roles: user.roles,
+    permissions: user.permissions,
+  } satisfies AuthJwtPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(String(user.id))
     .setIssuedAt()
-    .setExpirationTime(getTtl(type))
-    .sign(getSecret(type));
+    .setExpirationTime(getTtl(event, type))
+    .sign(getSecret(event, type));
 };
 
-export const setAuthCookies = async (event: H3Event, user: Pick<User, 'id' | 'email'>) => {
-  const [accessToken, refreshToken] = await Promise.all([signAuthToken(user, 'access'), signAuthToken(user, 'refresh')]);
+export const setAuthCookies = async (event: H3Event, user: Pick<User, 'id' | 'email' | 'name' | 'roles' | 'permissions'>) => {
+  const [accessToken, refreshToken] = await Promise.all([signAuthToken(event, user, 'access'), signAuthToken(event, user, 'refresh')]);
 
-  setCookie(event, ACCESS_COOKIE, accessToken, cookieOptions);
-  setCookie(event, REFRESH_COOKIE, refreshToken, cookieOptions);
+  setCookie(event, ACCESS_COOKIE, accessToken, getCookieOptions(event));
+  setCookie(event, REFRESH_COOKIE, refreshToken, getCookieOptions(event));
 };
 
 export const clearAuthCookies = (event: H3Event) => {
@@ -78,7 +126,7 @@ export const verifyAuthCookie = async (event: H3Event, type: TokenType = 'access
   }
 
   try {
-    const verified = await jwtVerify<AuthJwtPayload>(token, getSecret(type));
+    const verified = await jwtVerify<AuthJwtPayload>(token, getSecret(event, type));
 
     if (verified.payload.type !== type || !verified.payload.sub) {
       throw new Error('Invalid token payload');
@@ -87,7 +135,10 @@ export const verifyAuthCookie = async (event: H3Event, type: TokenType = 'access
     return {
       userId: Number(verified.payload.sub),
       email: verified.payload.email,
-    };
+      name: verified.payload.name ?? '',
+      roles: verified.payload.roles ?? [],
+      permissions: verified.payload.permissions ?? [],
+    } as AuthTokenData;
   } catch {
     throw createError({
       statusCode: 401,
@@ -99,7 +150,14 @@ export const verifyAuthCookie = async (event: H3Event, type: TokenType = 'access
 
 export const getCurrentUser = async (event: H3Event, type: TokenType = 'access') => {
   const payload = await verifyAuthCookie(event, type);
-  return userService.findById(payload.userId);
+
+  return {
+    id: payload.userId,
+    email: payload.email,
+    name: payload.name,
+    roles: payload.roles,
+    permissions: payload.permissions,
+  };
 };
 
 export const requireAuth = async (event: H3Event) => {
@@ -110,7 +168,9 @@ export const requirePermission = async (event: H3Event, permissions: string | st
   const user = await requireAuth(event);
   const required = Array.isArray(permissions) ? permissions : [permissions];
   const userPermissions = new Set(user.permissions.map((permission) => permission.key));
-  const allowed = requireAll ? required.every((permission) => userPermissions.has(permission)) : required.some((permission) => userPermissions.has(permission));
+  const allowed = requireAll
+    ? required.every((permission) => userPermissions.has(permission))
+    : required.some((permission) => userPermissions.has(permission));
 
   if (!allowed) {
     throw createError({

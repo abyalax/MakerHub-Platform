@@ -76,7 +76,7 @@ const handleClear = (e: MouseEvent) => {
         </Button>
       </PopoverTrigger>
 
-    <PopoverContent class="w-auto p-0 z-100" align="start" :side-offset="8">
+      <PopoverContent class="w-auto p-0 z-100" align="start" :side-offset="8">
         <Calendar initial-focus :model-value="calendarValue" @update:model-value="handleDateSelect" />
       </PopoverContent>
     </Popover>

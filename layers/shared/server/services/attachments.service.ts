@@ -103,6 +103,14 @@ class AttachmentsService {
     }
 
     const stat = await minioService.statObject(payload.objectKey);
+    if (!stat) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Validation Error',
+        message: 'Uploaded object was not found',
+      });
+    }
+
     if (typeof stat.size === 'number' && stat.size !== payload.size) {
       throw createError({
         statusCode: 400,

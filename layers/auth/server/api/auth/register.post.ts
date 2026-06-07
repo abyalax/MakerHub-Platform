@@ -7,13 +7,13 @@ import { userService } from '~/layers/users/server/services/users.service';
 
 export default defineEventHandler(async (event) => {
   const payload = validate(registerSchema, await readBody(event));
-  const userRole = await prisma.role.findUnique({ where: { name: 'User' } });
+  const userRole = await prisma.role.findUnique({ where: { name: 'Learner' } });
 
   if (!userRole) {
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',
-      message: 'Default role User is not configured',
+      message: 'Default role Learner is not configured',
     });
   }
 
