@@ -14,7 +14,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: async () => {
       const response = await http<TResponse>(ENDPOINT.LOGOUT, {
-        method: 'POST',
+        method: 'GET',
       });
       return response;
     },

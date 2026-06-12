@@ -9,6 +9,9 @@ export const QUERY_KEY = Object.freeze({
   ORDER_DETAIL: 'get-order-detail',
   ORDER_STATUS: 'get-order-status',
 
+  PROJECT_LIST: 'get-list-projects',
+  PROJECT_PUBLIC_DETAIL: 'get-public-project-detail',
+
   DASHBOARD: {
     TOTAL_SALES: 'dashboard-total-sales',
     TOP_EVENTS: 'dashboard-top-events',

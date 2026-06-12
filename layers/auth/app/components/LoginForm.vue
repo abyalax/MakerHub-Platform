@@ -27,7 +27,7 @@ const form = useForm({
   validationSchema: loginSchema,
   initialValues: {
     email: 'admin@gmail.com',
-    password: 'adminPassword1_',
+    password: 'Password1_',
   },
 });
 

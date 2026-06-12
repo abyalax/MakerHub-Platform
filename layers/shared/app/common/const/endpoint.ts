@@ -35,4 +35,13 @@ export const ENDPOINT = Object.freeze({
     TOP_EVENTS: '/dashboard/top-events',
     TOP_CATEGORIES: '/dashboard/top-categories',
   },
+
+  PROJECTS: {
+    LIST: '/projects',
+    LIST_MINE: '/projects/mine',
+    DETAIL: (id: number) => `/projects/${id}`,
+    LIST_PUBLICS: '/projects/public',
+    DETAIL_PUBLIC: (slug: string) => `/projects/public/${encodeURIComponent(slug)}`,
+    LIST_CATEGORIES: '/projects/categories',
+  },
 });

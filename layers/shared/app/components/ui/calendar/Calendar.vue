@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-// @ts-nocheck
-import type { CalendarRootEmits, CalendarRootProps } from 'reka-ui';
+import type { CalendarRootEmits, CalendarRootProps, DateValue } from 'reka-ui';
 import type { HTMLAttributes, Ref } from 'vue';
 import type { LayoutTypes } from '.';
 import { getLocalTimeZone, today } from '@internationalized/date';
@@ -8,8 +7,7 @@ import { createReusableTemplate, reactiveOmit, useVModel } from '@vueuse/core';
 import { CalendarRoot, useDateFormatter, useForwardPropsEmits } from 'reka-ui';
 import { createYear, createYearRange, toDate } from 'reka-ui/date';
 import { computed, toRaw } from 'vue';
-import { cn } from '~~/layers/shared/app/lib/utils';
-import { NativeSelect, NativeSelectOption } from '~~/layers/shared/app/components/ui/native-select';
+import { NativeSelect, NativeSelectOption } from '~/layers/shared/app/components/ui/native-select';
 import {
   CalendarCell,
   CalendarCellTrigger,
@@ -23,39 +21,41 @@ import {
   CalendarNextButton,
   CalendarPrevButton,
 } from '.';
+import { cn } from '../../../lib/utils';
 
-// eslint-disable-next-line vue/require-default-prop
-const props = withDefaults(defineProps<CalendarRootProps & { class?: HTMLAttributes['class']; layout?: LayoutTypes; yearRange?: any[] }>(), {
+const props = withDefaults(defineProps<CalendarRootProps & { class?: HTMLAttributes['class']; layout?: LayoutTypes; yearRange?: DateValue[] }>(), {
   modelValue: undefined,
   layout: undefined,
+  class: undefined,
+  yearRange: undefined,
 });
 const emits = defineEmits<CalendarRootEmits>();
 
-const delegatedProps = reactiveOmit(props as Record<string, unknown>, 'class', 'layout', 'placeholder');
+const delegatedProps = reactiveOmit(props, 'class', 'layout', 'placeholder');
 
-const placeholder = useVModel(props as Record<string, unknown>, 'placeholder', emits, {
+const placeholder = useVModel(props, 'placeholder', emits, {
   passive: true,
-  defaultValue: props.defaultPlaceholder ?? today(getLocalTimeZone()),
-}) as Ref<any>;
+  defaultValue: (props.defaultPlaceholder ?? today(getLocalTimeZone())) as DateValue,
+}) as Ref<DateValue>;
 
 const formatter = useDateFormatter(props.locale ?? 'en');
 
-const yearRange = computed<any[]>(() => {
-  const currentProps = props as Record<string, any>;
+const yearRange = computed(() => {
   return (
-    currentProps.yearRange ??
+    props.yearRange ??
     createYearRange({
-      start: currentProps?.minValue ?? (toRaw(currentProps.placeholder) ?? currentProps.defaultPlaceholder ?? today(getLocalTimeZone())).cycle('year', -100),
+      start:
+        props?.minValue ?? ((toRaw(props.placeholder) ?? props.defaultPlaceholder ?? today(getLocalTimeZone())).cycle('year', -100) as DateValue),
 
-      end: currentProps?.maxValue ?? (toRaw(currentProps.placeholder) ?? currentProps.defaultPlaceholder ?? today(getLocalTimeZone())).cycle('year', 10),
+      end: props?.maxValue ?? ((toRaw(props.placeholder) ?? props.defaultPlaceholder ?? today(getLocalTimeZone())).cycle('year', 10) as DateValue),
     })
   );
 });
 
-const [DefineMonthTemplate, ReuseMonthTemplate] = createReusableTemplate<{ date: any }>();
-const [DefineYearTemplate, ReuseYearTemplate] = createReusableTemplate<{ date: any }>();
+const [DefineMonthTemplate, ReuseMonthTemplate] = createReusableTemplate<{ date: DateValue }>();
+const [DefineYearTemplate, ReuseYearTemplate] = createReusableTemplate<{ date: DateValue }>();
 
-const forwarded = useForwardPropsEmits(delegatedProps as any, emits);
+const forwarded = useForwardPropsEmits(delegatedProps, emits);
 </script>
 
 <template>

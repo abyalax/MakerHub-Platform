@@ -1,16 +1,10 @@
 import type { ColumnDef } from '@tanstack/vue-table';
 import { h } from 'vue';
-import { ENDPOINT } from '~/layers/shared/app/common/const/endpoint';
-import { QUERY_KEY } from '~/layers/shared/app/common/const/querykey';
-import InfiniteSelect from '~/layers/shared/app/components/fragments/input/select/InfiniteSelect.vue';
 import { Input } from '~/layers/shared/app/components/ui/input';
 import { createCrudSelectColumn, crudCellControlProps } from '~/layers/shared/app/composable/table/crud';
-import { useHttp } from '~/layers/shared/app/composable/useHttp';
-import type { Paginated } from '~/layers/shared/app/types/meta';
-import type { TResponse } from '~/layers/shared/app/types/response';
 import RoleBadge from '../components/RoleBadge.vue';
-import type { Role } from '../types/index.js';
 import type { EditableUser } from './useTableStateUsers.js';
+import SelectUserRoles from '../components/SelectUserRoles.vue';
 
 type Params = {
   crud: {
@@ -26,21 +20,6 @@ type Params = {
 };
 
 export const useColumnUsers = (params: Params): ColumnDef<EditableUser>[] => {
-  const http = useHttp();
-
-  const fetchRoles = async (options: { page: number; limit: number; search: string }): Promise<Paginated<Role>> => {
-    const response = await http<TResponse<Paginated<Role>>>(ENDPOINT.ROLES, {
-      method: 'GET',
-      query: {
-        page: options.page,
-        limit: options.limit,
-        search: options.search || undefined,
-      },
-    });
-
-    return response.data;
-  };
-
   return [
     // 1. KOLOM SELECT
     createCrudSelectColumn(params.crud),
@@ -111,26 +90,15 @@ export const useColumnUsers = (params: Params): ColumnDef<EditableUser>[] => {
           );
         }
 
-        const selectedRoles = params.crud.getFieldValue(user, 'roles');
-
-        return h(InfiniteSelect as any, {
-          modelValue: selectedRoles,
-          multiple: true,
-          placeholder: 'Select roles',
-          labelKey: 'name',
-          valueKey: 'id',
-          class: 'min-w-72',
-          ...crudCellControlProps,
-          queryOptions: {
-            queryKey: [QUERY_KEY.ROLES_LIST],
-            fetcher: fetchRoles,
-            limit: 20,
-          },
-          'onUpdate:modelValue': (value: Role[] | Role | null) => {
-            const nextRoles = Array.isArray(value) ? value : value ? [value] : [];
-            params.crud.handleFieldChange(user, 'roles', nextRoles);
-            params.crud.handleFieldChange(user, 'roleIds', nextRoles.map((role) => role.id));
-          },
+        return h(SelectUserRoles, {
+          user: user,
+          crud: params.crud,
+          controlProps: crudCellControlProps,
+        });
+        return h(SelectUserRoles, {
+          user: user,
+          crud: params.crud,
+          controlProps: crudCellControlProps,
         });
       },
     },

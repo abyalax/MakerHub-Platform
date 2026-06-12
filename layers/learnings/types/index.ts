@@ -1,0 +1,41 @@
+import type { Bookmark } from '~/layers/bookmarks/types';
+import type { Enrollment } from '~/layers/enrollments/types';
+import type { Entitlement } from '~/layers/entitlements/types';
+import type { MediaObject } from '~/layers/media/types';
+import type { MentorProfile } from '~/layers/mentors/types';
+import type { Order } from '~/layers/orders/types';
+import type { Category, ClassProject } from '~/layers/projects/types';
+import type { RevenueShareRule } from '~/layers/revenue/types';
+import type { ClassType, ContentStatus } from '~/layers/shared/app/common/enum';
+import type { TrafficEvent } from '~/layers/traffics/types';
+import type { User } from '~/layers/users/types';
+
+export interface LearningClass {
+  id: number;
+  mentorId: number;
+  authorId: string;
+  categoryId?: number | undefined;
+  coverAssetId?: number | undefined;
+  title: string;
+  slug: string;
+  description: string;
+  classType: ClassType;
+  status: ContentStatus;
+  price: string;
+  currency: string;
+  publishedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  mentor: MentorProfile;
+  author: User;
+  category?: Category;
+  coverAsset?: MediaObject;
+  assets: MediaObject[];
+  projects: ClassProject[];
+  orders: Order[];
+  entitlements: Entitlement[];
+  enrollments: Enrollment[];
+  revenueShareRules: RevenueShareRule[];
+  bookmarks: Bookmark[];
+  trafficEvents: TrafficEvent[];
+}

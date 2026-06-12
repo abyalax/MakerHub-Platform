@@ -1,4 +1,4 @@
-import { LayoutDashboard, Settings, User2, ShieldCheck } from 'lucide-vue-next';
+import { LayoutDashboard, Settings, User2, ShieldCheck, Box } from 'lucide-vue-next';
 import type { Component } from 'vue';
 import { PERMISSIONS } from '../../../common/const/permission';
 
@@ -50,6 +50,12 @@ export const sidebarItems = (): MenuGroup[] => [
         url: '/roles',
         icon: ShieldCheck,
         permissions: [PERMISSIONS.ROLE.READ],
+      },
+      {
+        title: 'Projects',
+        url: '/projects',
+        icon: Box,
+        permissions: [PERMISSIONS.PROJECT.READ],
       },
     ],
   },

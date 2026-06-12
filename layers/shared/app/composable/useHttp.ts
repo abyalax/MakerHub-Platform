@@ -1,5 +1,5 @@
 import type { FetchOptions, FetchRequest, FetchResponse } from 'ofetch';
-import { AUTH_ENDPOINTS } from '~/layers/shared/app/common/const/pages';
+import { AUTH_ENDPOINTS } from '../common/const/pages';
 import type { TResponse, FetchError } from '../types/response';
 
 type HttpOptions = Omit<FetchOptions, 'method'> & {
@@ -53,7 +53,12 @@ const normalizePath = (request: FetchRequest) => {
 
 const shouldSkipRefresh = (request: FetchRequest) => {
   const path = normalizePath(request);
-  return AUTH_ENDPOINTS.has(path) || AUTH_ENDPOINTS.has(path.startsWith('/') ? path.slice(1) : `/${path}`);
+  const alternatePath = path.startsWith('/') ? path.slice(1) : `/${path}`;
+
+  return [...AUTH_ENDPOINTS].some((endpoint) => {
+    if (endpoint === path || endpoint === alternatePath) return true;
+    return endpoint.endsWith('/') && path.startsWith(endpoint);
+  });
 };
 
 const getResponseStatus = (error: unknown) => {
@@ -114,6 +119,7 @@ export const useHttp = () => {
         await nextTick();
       } catch (refreshError) {
         authStore.clearAuth();
+        await navigateTo('/login');
         throw refreshError;
       }
 

@@ -13,6 +13,8 @@
  * }
  */
 
+import { isPublicPage, PAGES } from '../../../shared/app/common/const/pages';
+
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
@@ -22,15 +24,27 @@ declare module 'vue-router' {
 }
 
 export default defineNuxtRouteMiddleware((to) => {
+  const authStore = useAuthStore();
   const { canAccessRoute } = useAuthorize();
+  const requiresPermissions = to.meta.requiresPermissions ?? [];
+  const isProtected = !isPublicPage(to.path) || to.meta.requiresAuth || requiresPermissions.length > 0;
 
   // Skip if route does not require auth
-  if (!to.meta.requiresAuth) return;
+  if (!isProtected) return;
+
+  if (!authStore.isAuthenticated) {
+    return navigateTo({
+      path: PAGES.LOGIN,
+      query: {
+        redirect: to.fullPath,
+      },
+    });
+  }
 
   // Allow if there is no permission requirement
-  if (!to.meta.requiresPermissions || to.meta.requiresPermissions.length === 0) return;
+  if (requiresPermissions.length === 0) return;
 
-  const requiredPermissions = to.meta.requiresPermissions;
+  const requiredPermissions = requiresPermissions;
   const requireAll = to.meta.requireAll !== false;
   const isAuthorized = canAccessRoute(requiredPermissions, requireAll);
 

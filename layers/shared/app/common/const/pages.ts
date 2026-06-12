@@ -7,11 +7,25 @@ export const PAGES = {
 } as const;
 
 export const PUBLIC_PAGES = {
-  EVENTS: '/public-events',
-  EVENTS_DETAIL: '/public-events/',
+  HOME: '/',
+  PROJECTS: '/public/projects',
+  PROJECTS_DETAIL: '/public/projects/',
+  MENTORS: '/public/mentors',
+  MENTORS_DETAIL: '/public/mentors/',
 } as const;
 
 export const LIST_PUBLIC_PAGES = [...Object.values(PUBLIC_PAGES), PAGES.LOGIN, PAGES.REGISTER] as const;
+
+export const PUBLIC_PAGE_PREFIXES = ['/public/'] as const;
+
+export const isPublicPage = (path: string) => {
+  const normalizedPath = path.replace(/\/+$/, '') || '/';
+
+  return LIST_PUBLIC_PAGES.some((page) => {
+    const normalizedPage = page.replace(/\/+$/, '') || '/';
+    return normalizedPath === normalizedPage;
+  }) || PUBLIC_PAGE_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix));
+};
 
 export const AUTH_ENDPOINTS = new Set([
   PAGES.LOGIN,
@@ -21,8 +35,9 @@ export const AUTH_ENDPOINTS = new Set([
   '/auth/refresh',
   '/auth/logout',
   '/auth/verify',
+  '/projects/public',
+  '/projects/public/',
   'refresh',
-  ...Object.values(PUBLIC_PAGES),
 ]);
 
 export type Pages = (typeof PAGES)[keyof typeof PAGES];

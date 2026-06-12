@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import LoginForm from '../components/LoginForm.vue';
 import { useRoute } from 'vue-router';
+import { normalizeInternalRedirect } from '../utils/redirect';
 
 const route = useRoute();
-const redirect = route.query.redirect as string;
-const redirectUrl = redirect ?? '/dashboard';
+const redirectUrl = normalizeInternalRedirect(route.query.redirect);
 </script>
 <template>
   <div class="container relative flex h-screen flex-col items-center justify-center lg:px-0">

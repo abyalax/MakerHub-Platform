@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// @ts-nocheck
 import { computed, ref } from 'vue';
 import { CalendarDate } from '@internationalized/date';
 import { Calendar as CalendarIcon, X } from 'lucide-vue-next';
@@ -8,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '~/layers/shared/app/com
 import { Button } from '~/layers/shared/app/components/ui/button';
 import { cn } from '~/layers/shared/app/lib/utils';
 import { formatDate } from '~/layers/shared/app/utils/formatter';
+import type { DateValue } from 'reka-ui';
 
 interface Props {
   modelValue?: string;
@@ -34,16 +34,16 @@ const displayValue = computed(() => {
   return formatDate(props.modelValue);
 });
 
-const calendarValue = computed<any>(() => {
+const calendarValue = computed(() => {
   if (!props.modelValue) return undefined;
 
   const date = new Date(props.modelValue);
   if (Number.isNaN(date.getTime())) return undefined;
 
-  return new CalendarDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
+  return new CalendarDate(date.getFullYear(), date.getMonth() + 1, date.getDate()) as unknown as DateValue;
 });
 
-const handleDateSelect = (date: any) => {
+const handleDateSelect = (date?: DateValue) => {
   if (!date) return;
 
   const isoString = `${date.toString()}T00:00`;
@@ -76,7 +76,7 @@ const handleClear = (e: MouseEvent) => {
         </Button>
       </PopoverTrigger>
 
-    <PopoverContent class="w-auto p-0 z-100" align="start" :side-offset="8">
+      <PopoverContent class="w-auto p-0 z-100" align="start" :side-offset="8">
         <Calendar initial-focus :model-value="calendarValue" @update:model-value="handleDateSelect" />
       </PopoverContent>
     </Popover>

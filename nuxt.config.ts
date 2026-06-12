@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   },
   ssr: false,
 
-  extends: ['./layers/shared', './layers/auth', './layers/users'],
+  extends: ['./layers/shared', './layers/public', './layers/auth', './layers/users', './layers/projects'],
 
   css: ['~/layers/shared/app/assets/css/tailwind.css', 'vue-sonner/style.css'],
 
@@ -57,21 +57,21 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    authAccessTokenSecret: process.env.NUXT_AUTH_ACCESS_TOKEN_SECRET || 'dev-access-token-secret-change-me',
-    authRefreshTokenSecret: process.env.NUXT_AUTH_REFRESH_TOKEN_SECRET || 'dev-refresh-token-secret-change-me',
-    authAccessTokenTtl: process.env.NUXT_AUTH_ACCESS_TOKEN_TTL || '15m',
-    authRefreshTokenTtl: process.env.NUXT_AUTH_REFRESH_TOKEN_TTL || '7d',
-    storageProvider: process.env.STORAGE_PROVIDER || 'minio',
-    storageEndpoint: process.env.STORAGE_ENDPOINT || 'http://localhost:9000',
-    storageAccessKey: process.env.STORAGE_ACCESS_KEY || process.env.MINIO_ROOT_USER || 'minioadmin',
-    storageSecretKey: process.env.STORAGE_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
-    storageRegion: process.env.STORAGE_REGION || 'us-east-1',
-    storageBucket: process.env.STORAGE_BUCKET || 'boilerplate-uploads',
-    storagePresignedUploadExpirationMinutes: process.env.STORAGE_PRESIGNED_UPLOAD_EXPIRATION_MINUTES || '10',
-    storagePresignedDownloadExpirationMinutes: process.env.STORAGE_PRESIGNED_DOWNLOAD_EXPIRATION_MINUTES || '10',
-    storageMaxFileSizeMb: process.env.STORAGE_MAX_FILE_SIZE_MB || '10',
+    authAccessTokenSecret: process.env.NUXT_AUTH_ACCESS_TOKEN_SECRET,
+    authRefreshTokenSecret: process.env.NUXT_AUTH_REFRESH_TOKEN_SECRET,
+    authAccessTokenTtl: process.env.NUXT_AUTH_ACCESS_TOKEN_TTL,
+    authRefreshTokenTtl: process.env.NUXT_AUTH_REFRESH_TOKEN_TTL,
+    storageProvider: process.env.STORAGE_PROVIDER,
+    storageEndpoint: process.env.STORAGE_ENDPOINT,
+    storageAccessKey: process.env.STORAGE_ACCESS_KEY,
+    storageSecretKey: process.env.STORAGE_SECRET_KEY,
+    storageRegion: process.env.STORAGE_REGION,
+    storageBucket: process.env.STORAGE_BUCKET,
+    storagePresignedUploadExpirationMinutes: process.env.STORAGE_PRESIGNED_UPLOAD_EXPIRATION_MINUTES,
+    storagePresignedDownloadExpirationMinutes: process.env.STORAGE_PRESIGNED_DOWNLOAD_EXPIRATION_MINUTES,
+    storageMaxFileSizeMb: process.env.STORAGE_MAX_FILE_SIZE_MB,
     public: {
-      apiBaseUrl: process.env.API_BASE_URL || '/api',
+      apiBaseUrl: process.env.API_BASE_URL,
     },
   },
 

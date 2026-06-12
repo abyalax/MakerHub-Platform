@@ -18,6 +18,13 @@ export const PERMISSIONS = Object.freeze({
     ASSIGN_PERMISSION: 'role:assign-permission',
     ASSIGN_USER: 'role:assign-user',
   },
+
+  PROJECT: {
+    CREATE: 'project:create',
+    READ: 'project:read',
+    UPDATE: 'project:update',
+    DELETE: 'project:delete',
+  },
 } as const);
 
 export const permissionsList: Permission[] = [

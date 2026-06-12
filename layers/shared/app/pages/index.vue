@@ -1,4 +1,6 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import Footer from '../components/fragments/footer/Footer.vue';
+</script>
 
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
@@ -11,9 +13,10 @@
       <NuxtLink to="/example">
         <Button>Example Modules</Button>
       </NuxtLink>
-      <NuxtLink to="/public-events">
-        <Button variant="outline">Public Events</Button>
+      <NuxtLink to="/public/projects">
+        <Button variant="outline">Browse Projects</Button>
       </NuxtLink>
     </div>
   </div>
+  <Footer />
 </template>
